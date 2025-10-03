@@ -1,33 +1,27 @@
-from flask import Flask, request
-import requests
+# app.py
+from flask import Flask, request, jsonify
 
+# Создаем Flask-приложение
 app = Flask(__name__)
 
-# твой токен Тинькофф API (получаешь в ЛК)
-TINKOFF_TOKEN = "ТОКЕН_ОТСЮДА"
-
-# адрес API
-BASE_URL = "https://api-invest.tinkoff.ru/openapi"
-
+# Эндпоинт для приема вебхуков (сюда будет слать TradingView)
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    data = request.json  # получаем JSON от TradingView
-    print("Пришёл сигнал:", data)
+    try:
+        data = request.get_json(force=True)  # получаем JSON из запроса
+        print("📩 Получен сигнал:", data)     # выводим в консоль (будет видно в логах Render)
+        return jsonify({"status": "ok"}), 200
+    except Exception as e:
+        print("❌ Ошибка:", str(e))
+        return jsonify({"status": "error", "message": str(e)}), 400
 
-    # пример: создаём лимитный ордер на покупку 10 акций Сбера
-    order = {
-        "figi": "BBG004730N88",  # FIGI Сбербанк
-        "quantity": 10,
-        "price": 270.00,
-        "direction": "BUY",
-        "accountId": "ТВОЙ_ACCOUNT_ID",
-        "orderType": "LIMIT"
-    }
+# Эндпоинт для проверки здоровья (Render будет сюда стучаться)
+@app.route("/healthz", methods=["GET"])
+def healthz():
+    return "ok", 200
 
-    headers = {"Authorization": f"Bearer {TINKOFF_TOKEN}"}
-    r = requests.post(BASE_URL + "/orders/limit-order", json=order, headers=headers)
-
-    return {"status": "ok", "tinkoff_response": r.json()}
-
+# Запуск приложения
 if __name__ == "__main__":
-    app.run(port=5000)
+    # host="0.0.0.0" — чтобы сервер был доступен снаружи
+    # port=5000 — Render автоматически пробрасывает этот порт
+    app.run(host="0.0.0.0", port=5000, debug=True)
